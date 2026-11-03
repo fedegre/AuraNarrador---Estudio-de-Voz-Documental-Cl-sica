@@ -23,7 +23,7 @@ export const Header: React.FC = () => {
                   AuraNarrador
                 </h1>
                 <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono-tech uppercase tracking-widest bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                  gemini-3.8-flash-tts
+                  kokoro-local
                 </span>
               </div>
               <p className="text-xs text-zinc-400 flex items-center gap-1.5">
@@ -75,7 +75,7 @@ export const Header: React.FC = () => {
                   Especificación de Persona & Calibración de Voz
                 </h3>
                 <p className="text-xs text-zinc-400 font-mono-tech">
-                  Modelo Gemini 3.8 Flash TTS • Síntesis Barítona
+                  Kokoro (local) • Síntesis Barítona
                 </p>
               </div>
             </div>

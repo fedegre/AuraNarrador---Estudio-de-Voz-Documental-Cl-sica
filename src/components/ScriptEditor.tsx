@@ -114,7 +114,7 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({
             onClick={onGenerate}
             disabled={isGenerating || !text.trim()}
             className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-zinc-950 font-bold text-xs flex items-center gap-2 shadow-md shadow-amber-950/40 ring-2 ring-amber-400/40 transition-all cursor-pointer active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-            title="Sintetizar locución con Gemini 3.8 Flash TTS"
+            title="Sintetizar locución con Kokoro (local)"
           >
             {isGenerating ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

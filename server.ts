@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
+import { synthesizeWithKokoro } from './server/kokoro';
+import { chatWithOllama, ollamaHost, ollamaModel } from './server/ollama';
 
 dotenv.config();
 
@@ -14,7 +16,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
-// Initialize Google GenAI client server-side
+// Engines: local by default (Kokoro for voice, Ollama for scripts); Gemini stays available as an option
+const TTS_ENGINE = (process.env.TTS_ENGINE || 'kokoro').toLowerCase();
+const SCRIPT_ENGINE = (process.env.SCRIPT_ENGINE || 'ollama').toLowerCase();
+const GEMINI_TTS_MODEL = 'gemini-3.8-flash-tts';
+
+// Initialize Google GenAI client server-side (only used when an engine is set to "gemini")
 const apiKey = process.env.GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({
   apiKey: apiKey,
@@ -52,6 +59,49 @@ const VOICE_PERSONAS: Record<string, { prompt: string; sampleText: string }> = {
 // Memory cache for voice preview samples
 const voiceSampleCache: Record<string, { audioBase64: string; mimeType: string }> = {};
 
+async function synthesizeWithGemini(text: string, voiceName: string, style: string) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw Object.assign(new Error('GEMINI_API_KEY no configurada (TTS_ENGINE=gemini).'), { status: 500 });
+  }
+
+  const response = await ai.models.generateContent({
+    model: GEMINI_TTS_MODEL,
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            text,
+            speechMetadata: {
+              style,
+            },
+          },
+        ],
+      },
+    ],
+    config: {
+      responseModalities: ['AUDIO'],
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: {
+            voiceName: voiceName,
+          },
+        },
+      },
+    },
+  });
+
+  const candidatePart = response.candidates?.[0]?.content?.parts?.[0];
+  const audioBase64 = candidatePart?.inlineData?.data;
+  if (!audioBase64) {
+    console.warn('No inline audio data returned from Gemini TTS. Response candidates:', JSON.stringify(response.candidates));
+    throw Object.assign(new Error('The TTS model did not return synthesized audio. Please verify text or try again.'), {
+      status: 502,
+    });
+  }
+  return { audioBase64, mimeType: candidatePart?.inlineData?.mimeType || 'audio/wav' };
+}
+
 /**
  * Health check
  */
@@ -59,7 +109,10 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
     hasApiKey: Boolean(process.env.GEMINI_API_KEY),
-    model: 'gemini-3.8-flash-tts',
+    ttsEngine: TTS_ENGINE,
+    scriptEngine: SCRIPT_ENGINE,
+    model: TTS_ENGINE === 'gemini' ? GEMINI_TTS_MODEL : 'kokoro-v1.0',
+    scriptModel: SCRIPT_ENGINE === 'gemini' ? 'gemini-3.8-flash' : `ollama:${ollamaModel()}`,
   });
 });
 
@@ -83,44 +136,10 @@ app.get('/api/tts/sample/:voiceName', async (req: Request, res: Response) => {
       });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: 'GEMINI_API_KEY no configurada.' });
-    }
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash-tts',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: config.sampleText,
-              speechMetadata: {
-                style: config.prompt,
-              },
-            },
-          ],
-        },
-      ],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: voiceName,
-            },
-          },
-        },
-      },
-    });
-
-    const candidatePart = response.candidates?.[0]?.content?.parts?.[0];
-    const base64Audio = candidatePart?.inlineData?.data;
-    const mimeType = candidatePart?.inlineData?.mimeType || 'audio/wav';
-
-    if (!base64Audio) {
-      return res.status(502).json({ error: 'No se pudo generar la muestra de voz.' });
-    }
+    const { audioBase64: base64Audio, mimeType } =
+      TTS_ENGINE === 'gemini'
+        ? await synthesizeWithGemini(config.sampleText, voiceName, config.prompt)
+        : await synthesizeWithKokoro(config.sampleText, voiceName);
 
     voiceSampleCache[voiceName] = { audioBase64: base64Audio, mimeType };
 
@@ -139,7 +158,7 @@ app.get('/api/tts/sample/:voiceName', async (req: Request, res: Response) => {
 });
 
 /**
- * TTS Generation Endpoint using gemini-3.8-flash-tts
+ * TTS Generation Endpoint (Kokoro local by default, gemini-3.8-flash-tts with TTS_ENGINE=gemini)
  */
 app.post('/api/tts/generate', async (req: Request, res: Response) => {
   try {
@@ -157,65 +176,26 @@ app.post('/api/tts/generate', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Text prompt is required for TTS generation.' });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({
-        error: 'GEMINI_API_KEY is not configured on the server. Please check the Secrets panel.',
-      });
-    }
+    const cleanedText = text.trim();
+    let synthesized: { audioBase64: string; mimeType: string };
 
-    // Build the synthesized style directive combining the exact persona with calibration metrics
-    const defaultVoiceConfig = VOICE_PERSONAS[voiceName] || VOICE_PERSONAS['Fenrir'];
-    const basePersona = customPersona?.trim() || defaultVoiceConfig.prompt;
-    const technicalDirectives = `
+    if (TTS_ENGINE === 'gemini') {
+      // Build the synthesized style directive combining the exact persona with calibration metrics
+      const defaultVoiceConfig = VOICE_PERSONAS[voiceName] || VOICE_PERSONAS['Fenrir'];
+      const basePersona = customPersona?.trim() || defaultVoiceConfig.prompt;
+      const technicalDirectives = `
 Acoustic parameters applied:
 - Stability: ${stability}% (Consistent posture, strictly avoid erratic pitch shifts)
 - Clarity & Articulation: ${clarity}% (Crystal clear diction and natural acoustic resonance)
 - Style Exaggeration: ${styleExaggeration}% (Documentary naturalism, no theatrical hyperbole)
 - Pacing & Cadence: ${pacing} (Deliberate dramatic pauses between sentences, reverent breathing).`;
 
-    const fullStyleDirective = `${basePersona}\n${technicalDirectives}`;
-
-    // Clean or format text if needed
-    const cleanedText = text.trim();
-
-    // Call gemini-3.8-flash-tts
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash-tts',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: cleanedText,
-              speechMetadata: {
-                style: fullStyleDirective,
-              },
-            },
-          ],
-        },
-      ],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: voiceName,
-            },
-          },
-        },
-      },
-    });
-
-    const candidatePart = response.candidates?.[0]?.content?.parts?.[0];
-    const base64Audio = candidatePart?.inlineData?.data;
-    const mimeType = candidatePart?.inlineData?.mimeType || 'audio/wav';
-
-    if (!base64Audio) {
-      console.warn('No inline audio data returned from Gemini TTS. Response candidates:', JSON.stringify(response.candidates));
-      return res.status(502).json({
-        error: 'The TTS model did not return synthesized audio. Please verify text or try again.',
-      });
+      synthesized = await synthesizeWithGemini(cleanedText, voiceName, `${basePersona}\n${technicalDirectives}`);
+    } else {
+      // Kokoro has no style prompt: the voice character comes from the profile, pacing adjusts speed and pauses
+      synthesized = await synthesizeWithKokoro(cleanedText, voiceName, pacing);
     }
+    const { audioBase64: base64Audio, mimeType } = synthesized;
 
     return res.json({
       success: true,
@@ -242,7 +222,7 @@ Acoustic parameters applied:
 });
 
 /**
- * Script Enhancement Endpoint (Gemini 3.8 Flash)
+ * Script Enhancement Endpoint (Ollama local by default, Gemini 3.8 Flash with SCRIPT_ENGINE=gemini)
  * Re-writes or enriches any draft script into classic documentary narration style
  * with dramatic pauses, evocative imagery, and solemn cadence.
  */
@@ -254,35 +234,37 @@ app.post('/api/script/enhance', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Draft text is required for script enhancement.' });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({
-        error: 'GEMINI_API_KEY is not configured on the server.',
-      });
-    }
-
     const systemPrompt = `Eres un prestigioso guionista y director de locución documental de televisión en español, especializado en el estilo mítico de "La Aventura del Hombre", Pancho Ibáñez y Ernesto Frith.
 Tu misión es transformar el texto del usuario en un guion de narración solemne, poético, majestuoso y científicamente riguroso.
 Reglas:
 1. Idioma: Español rioplatense/latinoamericano neutro y culto, digno de un documental de archivo o de naturaleza/historia monumental.
-2. Ritmo: Incorpora puntos suspensivos ("...") o acotaciones sutiles donde deban ocurrir pausas dramáticas y silencios reflexivos.
-3. Puedes utilizar etiquetas de inflexión vocal sutiles reconocidas por modelos de voz avanzados como <breath> cuando un respiro dramático añada realismo.
+2. Ritmo: Incorpora puntos suspensivos ("...") donde deban ocurrir pausas dramáticas y silencios reflexivos.
+3. No uses etiquetas, acotaciones entre corchetes ni marcas de formato: todo lo que escribas será leído en voz alta.
 4. Mantén la esencia y mensaje original pero eleva la riqueza léxica (palabras como "inmemorial", "vastedad", "vestigio", "silencio", "destino", "origen").
 5. Devuelve ÚNICAMENTE el guion narrativo final, sin introducciones ni comentarios adicionales.`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: `Adapta el siguiente texto al estilo de locución documental solemne:\n\n"${draftText}"` }],
-        },
-      ],
-      config: {
-        systemInstruction: systemPrompt,
-      },
-    });
+    const userPrompt = `Adapta el siguiente texto al estilo de locución documental solemne:\n\n"${draftText}"`;
+    let enhancedText: string;
 
-    const enhancedScript = response.text?.trim() || draftText;
+    if (SCRIPT_ENGINE === 'gemini') {
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({
+          error: 'GEMINI_API_KEY is not configured on the server (SCRIPT_ENGINE=gemini).',
+        });
+      }
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        config: {
+          systemInstruction: systemPrompt,
+        },
+      });
+      enhancedText = response.text?.trim() || '';
+    } else {
+      enhancedText = await chatWithOllama(systemPrompt, userPrompt);
+    }
+
+    const enhancedScript = enhancedText || draftText;
 
     return res.json({
       success: true,
@@ -326,6 +308,7 @@ async function startServer() {
 
   httpServer.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`🎙️ AuraNarrador Server running on http://0.0.0.0:${PORT} (${isProd ? 'Production' : 'Development'})`);
+    console.log(`   Voz: ${TTS_ENGINE} · Guion: ${SCRIPT_ENGINE === 'gemini' ? 'gemini' : `ollama ${ollamaModel()} en ${ollamaHost()}`}`);
   });
 }
 

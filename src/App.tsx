@@ -241,7 +241,7 @@ export default function App() {
                 La Voz de la Aventura y el Tiempo
               </h2>
               <p className="mt-2 text-xs sm:text-sm text-zinc-300 leading-relaxed font-script-quote">
-                Generador de locución con el timbre, la cadencia y el porte solemne de los grandes narradores de documentales de la televisión latinoamericana. Tonos graves, silencios reflexivos y rigor científico evocador impulsado por <strong>Gemini 3.8 Flash TTS</strong>.
+                Generador de locución con el timbre, la cadencia y el porte solemne de los grandes narradores de documentales de la televisión latinoamericana. Tonos graves, silencios reflexivos y rigor científico evocador impulsado por <strong>Kokoro + Ollama</strong>, todo local en tu PC.
               </p>
             </div>
 
@@ -334,7 +334,7 @@ export default function App() {
             </span>
             <span className="text-zinc-600 hidden sm:inline">•</span>
             <span className="text-xs text-zinc-400 hidden sm:inline font-mono-tech">
-              Gemini 3.8 Flash TTS
+              Kokoro TTS · local
             </span>
           </div>
 
@@ -368,7 +368,7 @@ export default function App() {
           <div className="flex items-center gap-2 text-[11px]">
             <span>AuraNarrador Studio</span>
             <span>•</span>
-            <span className="text-amber-500/80">Gemini 3.8 Flash TTS</span>
+            <span className="text-amber-500/80">Kokoro TTS · Ollama</span>
           </div>
         </div>
       </footer>
