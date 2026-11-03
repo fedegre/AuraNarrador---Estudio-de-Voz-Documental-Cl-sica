@@ -6,7 +6,7 @@ import { AudioMasteringPlayer } from './components/AudioMasteringPlayer';
 import { TakesHistory } from './components/TakesHistory';
 import { AcousticParameters, AudioTake, ScriptPreset } from './types';
 import { SCRIPT_PRESETS } from './data/presets';
-import { Radio, Mic, Award, Compass, Sparkles } from 'lucide-react';
+import { Radio, Mic, Award, Compass, Sparkles, Loader2 } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'auranarrador_takes_v1';
 
@@ -318,8 +318,49 @@ export default function App() {
         </div>
       </main>
 
+      {/* Sticky Bottom Control Dock for Instant Synthesis Access */}
+      <div className="sticky bottom-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-t border-amber-500/40 py-3 px-4 shadow-2xl shadow-black">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+              <span className="text-xs font-mono-tech text-zinc-300">
+                VOZ ACTIVA: <strong className="text-amber-400 font-bold">{parameters.voiceName}</strong>
+              </span>
+            </div>
+            <span className="text-zinc-600 hidden sm:inline">•</span>
+            <span className="text-xs text-zinc-400 hidden sm:inline font-mono-tech">
+              {text.trim() ? text.trim().split(/\s+/).length : 0} palabras
+            </span>
+            <span className="text-zinc-600 hidden sm:inline">•</span>
+            <span className="text-xs text-zinc-400 hidden sm:inline font-mono-tech">
+              Gemini 3.8 Flash TTS
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGenerateTTS}
+            disabled={isGenerating || !text.trim()}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-zinc-950 font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-lg shadow-amber-950/60 ring-2 ring-amber-400/50 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
+                <span>Sintetizando con {parameters.voiceName}...</span>
+              </>
+            ) : (
+              <>
+                <Mic className="w-4 h-4 fill-current text-zinc-950" />
+                <span>Sintetizar Locución</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Solemn Documentary Archive Footer */}
-      <footer className="border-t border-zinc-900 bg-zinc-950/80 py-6 mt-12 text-center text-xs text-zinc-500 font-mono-tech">
+      <footer className="border-t border-zinc-900 bg-zinc-950/80 py-6 text-center text-xs text-zinc-500 font-mono-tech">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="font-script-quote italic text-zinc-400">
             «El hombre, en su constante travesía hacia lo desconocido... continúa buscando su lugar en el cosmos.»

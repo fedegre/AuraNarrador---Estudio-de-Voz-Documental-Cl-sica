@@ -97,17 +97,38 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({
         </div>
 
         {/* Textarea Label & Insertion Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
           <div className="flex items-center gap-2">
             <label className="text-xs font-semibold text-zinc-200 font-serif-doc flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-amber-400" />
-              Texto para Locución (Español Latinoamericano)
+              <span>Texto para Locución</span>
             </label>
+            <span className="text-[10px] font-mono-tech px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
+              Voz: <strong>{activeVoiceName}</strong>
+            </span>
           </div>
 
-          {/* Quick Vocal Cues Toolbar */}
-          <div className="flex items-center gap-1 text-[11px] font-mono-tech">
-            <span className="text-zinc-500 text-[10px] hidden sm:inline">INSERTAR:</span>
+          {/* Quick Top 'Sintetizar Locución' Button */}
+          <button
+            type="button"
+            onClick={onGenerate}
+            disabled={isGenerating || !text.trim()}
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-zinc-950 font-bold text-xs flex items-center gap-2 shadow-md shadow-amber-950/40 ring-2 ring-amber-400/40 transition-all cursor-pointer active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+            title="Sintetizar locución con Gemini 3.8 Flash TTS"
+          >
+            {isGenerating ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Mic className="w-3.5 h-3.5 fill-current text-zinc-950" />
+            )}
+            <span>Sintetizar Locución</span>
+          </button>
+        </div>
+
+        {/* Quick Vocal Cues Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2 text-[11px] font-mono-tech bg-zinc-950/60 p-2 rounded-xl border border-zinc-800/80">
+          <span className="text-zinc-500 text-[10px] hidden sm:inline">INSERTAR EFECTOS VOCALES:</span>
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => insertCue('...')}
@@ -128,7 +149,7 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({
               type="button"
               onClick={handleEnhanceWithAI}
               disabled={isEnhancing || isGenerating || !text.trim()}
-              className="flex items-center gap-1 px-2.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all disabled:opacity-40"
+              className="flex items-center gap-1 px-2.5 py-0.5 rounded bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition-all disabled:opacity-40"
               title="Reescribe el texto con el estilo de narración de La Aventura del Hombre"
             >
               {isEnhancing ? (
@@ -180,26 +201,34 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({
         )}
       </div>
 
-      {/* Synthesis Primary Action */}
+      {/* Synthesis Primary Action (Highlighted Broadcast Studio Style) */}
       <div className="mt-5 pt-4 border-t border-zinc-800/80">
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={isGenerating || !text.trim()}
-          className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-zinc-950 font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-xl shadow-amber-950/50 transition-all active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin text-zinc-950" />
-              <span>Sintetizando con voz {activeVoiceName} (Gemini 3.8 Flash TTS)...</span>
-            </>
-          ) : (
-            <>
-              <Mic className="w-5 h-5 text-zinc-950" />
-              <span>Sintetizar Guion con Voz: {activeVoiceName} (24kHz WAV)</span>
-            </>
-          )}
-        </button>
+        <div className="p-1 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 shadow-xl shadow-amber-950/60 ring-2 ring-amber-400/50 animate-pulse">
+          <button
+            type="button"
+            onClick={onGenerate}
+            disabled={isGenerating || !text.trim()}
+            className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-zinc-950 font-black text-base sm:text-lg tracking-wide uppercase flex flex-col sm:flex-row items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-6 h-6 animate-spin text-zinc-950" />
+                <span>Sintetizando Locución con {activeVoiceName}...</span>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-red-600 animate-ping"></span>
+                  <Mic className="w-6 h-6 text-zinc-950 fill-current" />
+                  <span>Sintetizar Locución</span>
+                </div>
+                <span className="text-xs font-mono-tech normal-case font-bold bg-black/20 px-2.5 py-1 rounded-lg text-zinc-950 border border-black/10">
+                  Voz: {activeVoiceName} • 24kHz WAV
+                </span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
