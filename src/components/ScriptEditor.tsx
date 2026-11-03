@@ -11,6 +11,7 @@ interface ScriptEditorProps {
   onSelectPreset: (preset: ScriptPreset) => void;
   selectedPresetId?: string;
   error?: string | null;
+  activeVoiceName?: string;
 }
 
 export const ScriptEditor: React.FC<ScriptEditorProps> = ({
@@ -21,6 +22,7 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({
   onSelectPreset,
   selectedPresetId,
   error,
+  activeVoiceName = 'Fenrir',
 }) => {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhanceSuccess, setEnhanceSuccess] = useState(false);
@@ -189,12 +191,12 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({
           {isGenerating ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin text-zinc-950" />
-              <span>Sintetizando Voz con Gemini 3.8 Flash TTS...</span>
+              <span>Sintetizando con voz {activeVoiceName} (Gemini 3.8 Flash TTS)...</span>
             </>
           ) : (
             <>
               <Mic className="w-5 h-5 text-zinc-950" />
-              <span>Sintetizar Locución Documental (24kHz WAV)</span>
+              <span>Sintetizar Guion con Voz: {activeVoiceName} (24kHz WAV)</span>
             </>
           )}
         </button>

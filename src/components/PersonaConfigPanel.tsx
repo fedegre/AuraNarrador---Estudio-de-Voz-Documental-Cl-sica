@@ -1,20 +1,57 @@
 import React, { useState } from 'react';
-import { Sliders, Mic2, HelpCircle, CheckCircle2, RotateCcw, Edit3, ShieldAlert, Sparkles } from 'lucide-react';
+import { Sliders, Mic2, HelpCircle, CheckCircle2, RotateCcw, Edit3, Volume2, Loader2, Sparkles } from 'lucide-react';
 import { AcousticParameters, VoiceOption } from '../types';
-import { VOICE_OPTIONS, DEFAULT_PERSONA_GUIDE } from '../data/presets';
+import { VOICE_OPTIONS } from '../data/presets';
 
 interface PersonaConfigPanelProps {
   parameters: AcousticParameters;
   onChange: (newParams: AcousticParameters) => void;
   customPersona: string;
   onCustomPersonaChange: (persona: string) => void;
+  onPreviewSample: (voiceName: string) => Promise<void>;
+  samplingVoice: string | null;
 }
+
+const VOICE_METADATA_MAP: Record<string, { role: string; title: string; desc: string; tag: string }> = {
+  Fenrir: {
+    role: 'Documental Rioplatense Clásico',
+    title: 'Ernesto Frith & Pancho Ibáñez',
+    desc: 'Barítono cavernoso con rica resonancia pectoral. Cadencia pausada, reverente y de gran peso histórico para documentales de gran escala.',
+    tag: 'Barítono Bajo Cavernoso',
+  },
+  Charon: {
+    role: 'Documental Arqueológico & Cósmico',
+    title: 'Narrador Solemne & Enigmático',
+    desc: 'Registro bajo y oscuro con pausas cargadas de misterio. Perfecto para cosmología, civilizaciones perdidas y enigmas de la antigüedad.',
+    tag: 'Bajo Oscuro & Misterioso',
+  },
+  Puck: {
+    role: 'Divulgación Científica & Biológica',
+    title: 'Narrador Analítico & Articulado',
+    desc: 'Dicción rápida, nítida y timbre inteligente. Diseñado para documentales sobre evolución, física cuántica y exploración de la naturaleza.',
+    tag: 'Barítono Medio Científico',
+  },
+  Zephyr: {
+    role: 'Ensayo Visual & Poético',
+    title: 'Narrador Sereno & Filosófico',
+    desc: 'Timbre cálido, suave y contemplativo. Transmite intimidad y comunión con los paisajes vírgenes y la soledad del viento.',
+    tag: 'Barítono Suave & Cálido',
+  },
+  Kore: {
+    role: 'Locución Institucional & Cultural',
+    title: 'Narradora Solemne & Majestuosa',
+    desc: 'Voz femenina de gran presencia, clara y envolvente. Ideal para antropología, memoria histórica y relatos de pueblos originarios.',
+    tag: 'Mezzosoprano Documental Femenina',
+  },
+};
 
 export const PersonaConfigPanel: React.FC<PersonaConfigPanelProps> = ({
   parameters,
   onChange,
   customPersona,
   onCustomPersonaChange,
+  onPreviewSample,
+  samplingVoice,
 }) => {
   const [showPersonaEditor, setShowPersonaEditor] = useState(false);
 
@@ -29,6 +66,13 @@ export const PersonaConfigPanel: React.FC<PersonaConfigPanelProps> = ({
   };
 
   const selectedVoice = VOICE_OPTIONS.find((v) => v.id === parameters.voiceName) || VOICE_OPTIONS[0];
+  const activeMeta = VOICE_METADATA_MAP[selectedVoice.id] || VOICE_METADATA_MAP['Fenrir'];
+
+  const handleVoiceSelect = async (voiceId: string) => {
+    onChange({ ...parameters, voiceName: voiceId });
+    // Also trigger sample preview so user immediately hears what the new voice sounds like!
+    await onPreviewSample(voiceId);
+  };
 
   return (
     <div className="rounded-2xl border border-zinc-800/90 bg-zinc-900/60 p-5 backdrop-blur-md shadow-xl flex flex-col justify-between">
@@ -43,10 +87,10 @@ export const PersonaConfigPanel: React.FC<PersonaConfigPanelProps> = ({
               <h2 className="font-serif-doc text-base font-bold text-zinc-100 flex items-center gap-2">
                 Parámetros Acústicos
                 <span className="text-[10px] font-mono-tech font-normal px-1.5 py-0.5 rounded bg-zinc-800 text-amber-300 border border-zinc-700">
-                  Calibración TTS
+                  gemini-3.8-flash-tts
                 </span>
               </h2>
-              <p className="text-xs text-zinc-400">Configuración técnica para gemini-3.8-flash-tts</p>
+              <p className="text-xs text-zinc-400">Calibración de timbre, cadencia y directivas</p>
             </div>
           </div>
 
@@ -61,19 +105,22 @@ export const PersonaConfigPanel: React.FC<PersonaConfigPanelProps> = ({
           </button>
         </div>
 
-        {/* Selected Persona Pill */}
-        <div className="rounded-xl border border-amber-900/30 bg-gradient-to-r from-amber-950/20 to-zinc-900/80 p-3.5 mb-5 relative">
+        {/* Dynamic Selected Persona Card */}
+        <div className="rounded-xl border border-amber-900/30 bg-gradient-to-r from-amber-950/20 via-zinc-900/90 to-zinc-900/80 p-3.5 mb-5 relative transition-all">
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="text-[10px] font-mono-tech uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                Persona Activa: Documental Rioplatense
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Persona Activa: {activeMeta.role}
               </div>
-              <h3 className="text-sm font-semibold text-zinc-200 mt-0.5">
-                Ernesto Frith & Pancho Ibáñez
+              <h3 className="text-sm font-semibold text-zinc-100 mt-1 flex items-center gap-2">
+                <span>{activeMeta.title}</span>
+                <span className="text-[10px] font-mono-tech text-amber-300/90 px-1.5 py-0.5 rounded bg-amber-400/10 border border-amber-500/20 font-normal">
+                  {selectedVoice.id}
+                </span>
               </h3>
               <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                Barítono solemne de rica resonancia torácica, cadencia pausada y reverente para documentales clásicos.
+                {activeMeta.desc}
               </p>
             </div>
             <button
@@ -98,7 +145,7 @@ export const PersonaConfigPanel: React.FC<PersonaConfigPanelProps> = ({
                 onChange={(e) => onCustomPersonaChange(e.target.value)}
                 rows={5}
                 className="w-full text-xs font-mono-tech p-2.5 rounded-lg bg-black/60 border border-zinc-700 text-zinc-300 focus:outline-none focus:border-amber-500 transition-colors"
-                placeholder="Describe la voz, resonancia, tono emocional..."
+                placeholder="Personaliza las directivas acústicas de la voz..."
               />
               <div className="flex justify-end gap-2 mt-2">
                 <button
@@ -120,42 +167,88 @@ export const PersonaConfigPanel: React.FC<PersonaConfigPanelProps> = ({
           )}
         </div>
 
-        {/* Voice Selector Grid */}
+        {/* Voice Selector Grid with Instant Audio Preview Button */}
         <div className="mb-5">
-          <label className="block text-xs font-semibold text-zinc-300 mb-2 font-serif-doc flex items-center justify-between">
-            <span>Timbre de Voz Base</span>
-            <span className="text-[10px] font-mono-tech text-amber-400 font-normal">
-              {selectedVoice.pitchRange}
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold text-zinc-300 font-serif-doc">
+              Timbre de Voz Base
+            </label>
+            <span className="text-[10px] font-mono-tech text-zinc-400">
+              Haz clic para seleccionar y oír muestra
             </span>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {VOICE_OPTIONS.map((voice) => {
               const isSelected = voice.id === parameters.voiceName;
+              const isSampling = samplingVoice === voice.id;
+
               return (
-                <button
+                <div
                   key={voice.id}
-                  type="button"
-                  onClick={() => onChange({ ...parameters, voiceName: voice.id })}
-                  className={`text-left p-2.5 rounded-xl border transition-all ${
+                  className={`p-2.5 rounded-xl border transition-all flex flex-col justify-between ${
                     isSelected
-                      ? 'bg-amber-500/15 border-amber-500/60 shadow-sm shadow-amber-500/20'
-                      : 'bg-zinc-950/40 border-zinc-800 hover:border-zinc-700 text-zinc-400'
+                      ? 'bg-amber-500/15 border-amber-500/70 shadow-sm shadow-amber-500/20 ring-1 ring-amber-500/30'
+                      : 'bg-zinc-950/40 border-zinc-800/80 hover:border-zinc-700'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold ${isSelected ? 'text-amber-300' : 'text-zinc-200'}`}>
-                      {voice.name}
-                    </span>
-                    {voice.id === 'Fenrir' && (
-                      <span className="text-[9px] font-mono-tech px-1 rounded bg-amber-400/20 text-amber-300 border border-amber-500/30">
-                        RECOMENDADO
-                      </span>
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <button
+                        type="button"
+                        onClick={() => handleVoiceSelect(voice.id)}
+                        className="text-left font-bold text-xs flex items-center gap-1.5 cursor-pointer flex-1"
+                      >
+                        <span className={isSelected ? 'text-amber-300' : 'text-zinc-200'}>
+                          {voice.name}
+                        </span>
+                        {voice.gender === 'female' ? (
+                          <span className="text-[9px] font-mono-tech px-1 rounded bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30">
+                            FEM
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-mono-tech px-1 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            MASC
+                          </span>
+                        )}
+                      </button>
+
+                      {/* Explicit Play Sample Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVoiceSelect(voice.id);
+                        }}
+                        disabled={isSampling}
+                        title={`Escuchar muestra rápida de ${voice.name}`}
+                        className={`p-1 rounded-lg text-[10px] font-mono-tech flex items-center gap-1 transition-all ${
+                          isSelected
+                            ? 'bg-amber-500 text-zinc-950 font-bold shadow-xs hover:bg-amber-400'
+                            : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300'
+                        }`}
+                      >
+                        {isSampling ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Volume2 className="w-3 h-3" />
+                        )}
+                        <span className="hidden sm:inline">Oír</span>
+                      </button>
+                    </div>
+
+                    <div className="text-[11px] text-zinc-400 leading-snug line-clamp-2">
+                      {voice.tone}
+                    </div>
+                  </div>
+
+                  <div className="mt-2 pt-1.5 border-t border-zinc-800/60 flex items-center justify-between text-[10px] font-mono-tech text-zinc-500">
+                    <span className="truncate">{voice.pitchRange}</span>
+                    {isSelected && (
+                      <span className="text-amber-400 font-bold text-[9px]">ACTIVA</span>
                     )}
                   </div>
-                  <div className="text-[11px] text-zinc-400 line-clamp-1 mt-0.5">
-                    {voice.tone}
-                  </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -260,7 +353,7 @@ export const PersonaConfigPanel: React.FC<PersonaConfigPanelProps> = ({
                   key={p.id}
                   type="button"
                   onClick={() => onChange({ ...parameters, pacing: p.id as any })}
-                  className={`p-2 rounded-lg border text-left transition-all ${
+                  className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-amber-500/20 border-amber-500 text-zinc-100 font-medium'
                       : 'bg-zinc-950/40 border-zinc-800/80 text-zinc-400 hover:border-zinc-700'

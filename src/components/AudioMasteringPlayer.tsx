@@ -6,10 +6,11 @@ import { globalAudioEngine } from '../utils/audioEngine';
 
 interface AudioMasteringPlayerProps {
   currentTake: AudioTake | null;
+  activeVoiceName?: string;
   onWarmthChange?: (active: boolean) => void;
 }
 
-export const AudioMasteringPlayer: React.FC<AudioMasteringPlayerProps> = ({ currentTake }) => {
+export const AudioMasteringPlayer: React.FC<AudioMasteringPlayerProps> = ({ currentTake, activeVoiceName }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -166,10 +167,10 @@ export const AudioMasteringPlayer: React.FC<AudioMasteringPlayerProps> = ({ curr
         <div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono-tech uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
-              Master WAV (24kHz Mono 16-bit)
+              {currentTake.id.startsWith('sample_') ? 'Muestra de Timbre' : 'Master WAV 24kHz'}
             </span>
             <span className="text-xs text-zinc-400 font-mono-tech">
-              Voz: <strong className="text-zinc-200">{currentTake.voiceName}</strong>
+              Voz en reproducción: <strong className="text-amber-400">{currentTake.voiceName}</strong>
             </span>
           </div>
           <h3 className="text-base font-semibold text-zinc-100 mt-1 font-serif-doc line-clamp-1">
@@ -207,6 +208,30 @@ export const AudioMasteringPlayer: React.FC<AudioMasteringPlayerProps> = ({ curr
           </button>
         </div>
       </div>
+
+      {/* Voice Selection Notice if active panel voice differs from current take */}
+      {activeVoiceName && activeVoiceName !== currentTake.voiceName && !currentTake.id.startsWith('sample_') && (
+        <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex flex-wrap items-center justify-between gap-2">
+          <span>
+            💡 Estás escuchando una toma grabada con <strong>{currentTake.voiceName}</strong>. En el panel has seleccionado <strong>{activeVoiceName}</strong>.
+          </span>
+          <span className="font-mono-tech text-[10px] bg-amber-400/20 px-2 py-0.5 rounded text-amber-300 font-semibold">
+            Pulsa 'Sintetizar Locución' para aplicar
+          </span>
+        </div>
+      )}
+
+      {/* Sample Banner if currently playing a preview sample */}
+      {currentTake.id.startsWith('sample_') && (
+        <div className="mt-2.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex flex-wrap items-center justify-between gap-2">
+          <span>
+            🔊 Muestra acústica de <strong>{currentTake.voiceName}</strong> lista. Pulsa 'Sintetizar Locución' abajo para grabar todo tu guion con esta voz.
+          </span>
+          <span className="font-mono-tech text-[10px] bg-emerald-400/20 px-2 py-0.5 rounded text-emerald-200 font-semibold">
+            Muestra Oficial
+          </span>
+        </div>
+      )}
 
       {/* Visualizer */}
       <div className="my-3">

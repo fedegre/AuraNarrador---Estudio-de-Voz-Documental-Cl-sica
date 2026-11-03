@@ -22,6 +22,7 @@ export default function App() {
   });
   const [customPersona, setCustomPersona] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [samplingVoice, setSamplingVoice] = useState<string | null>(null);
   const [currentTake, setCurrentTake] = useState<AudioTake | null>(null);
   const [takes, setTakes] = useState<AudioTake[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +87,48 @@ export default function App() {
         ...prev,
         pacing: preset.suggestedPacing,
       }));
+    }
+  };
+
+  const handlePreviewSample = async (voiceName: string) => {
+    setSamplingVoice(voiceName);
+    setError(null);
+    try {
+      const res = await fetch(`/api/tts/sample/${voiceName}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Error al obtener la muestra de voz');
+      }
+
+      const base64Data = data.audioBase64;
+      const mimeType = data.mimeType || 'audio/wav';
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const audioBlob = new Blob([byteArray], { type: mimeType });
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      const sampleTake: AudioTake = {
+        id: `sample_${voiceName}_${Date.now()}`,
+        timestamp: Date.now(),
+        text: data.sampleText,
+        audioUrl,
+        audioBase64: base64Data,
+        mimeType,
+        voiceName: voiceName,
+        parameters: { ...parameters, voiceName },
+        title: `Muestra Acústica: ${voiceName}`,
+      };
+
+      setCurrentTake(sampleTake);
+    } catch (err: any) {
+      console.error('Error in sample preview:', err);
+      setError(`No se pudo reproducir la muestra de ${voiceName}: ${err.message}`);
+    } finally {
+      setSamplingVoice(null);
     }
   };
 
@@ -238,10 +281,14 @@ export default function App() {
               onSelectPreset={handleSelectPreset}
               selectedPresetId={selectedPresetId}
               error={error}
+              activeVoiceName={parameters.voiceName}
             />
 
             {/* Realtime Audio Mastering & Monitoring */}
-            <AudioMasteringPlayer currentTake={currentTake} />
+            <AudioMasteringPlayer
+              currentTake={currentTake}
+              activeVoiceName={parameters.voiceName}
+            />
 
             {/* Takes History */}
             <TakesHistory
@@ -264,6 +311,8 @@ export default function App() {
               onChange={setParameters}
               customPersona={customPersona}
               onCustomPersonaChange={setCustomPersona}
+              onPreviewSample={handlePreviewSample}
+              samplingVoice={samplingVoice}
             />
           </div>
         </div>

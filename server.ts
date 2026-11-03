@@ -25,12 +25,32 @@ const ai = new GoogleGenAI({
   },
 });
 
-// Default persona configuration based on user brief
-const DEFAULT_PERSONA_PROMPT = `A mature, warm, deep, and authoritative male narrator's voice, speaking in standard Latin American Spanish (Rioplatense / Argentine documentary style, clear and unaccented for general audiences). The tone is formal, solemn, serious, highly professional, and evocative, reminiscent of classic TV documentary narrators (such as Pancho Ibáñez and Ernesto Frith in 'La Aventura del Hombre').
-Pitch: Deep baritone with rich chest resonance and full low-end frequencies.
-Pacing & Cadencia: Slow-to-moderate, steady tempo. Impeccable use of deliberate, dramatic pauses between clauses to convey grandeur, nostalgia, and scientific or historical weight.
-Articulation: Flawless, crisp diction with soft, natural breath control. Smooth transitions without sudden pitch spikes or overly dramatic shifts.
-Emotional Tone: Reverent, reflective, authoritative yet inviting and educational. It conveys wisdom, mystery, and solemn respect for nature and history.`;
+// Voice-specific acoustic and persona configurations
+const VOICE_PERSONAS: Record<string, { prompt: string; sampleText: string }> = {
+  Fenrir: {
+    prompt: `A mature, warm, deep, and authoritative male narrator's voice, speaking in standard Latin American Spanish (Rioplatense / Argentine documentary style, clear and unaccented for general audiences). Pitch: Deep cavernous baritone with rich chest resonance and full low-end frequencies. Pacing: Slow-to-moderate, steady tempo with deliberate, dramatic pauses between clauses. Tone: Reverent, solemn, highly professional, reminiscent of Pancho Ibáñez and Ernesto Frith in 'La Aventura del Hombre'.`,
+    sampleText: 'En los confines australes del continente... el viento custodia el silencio milenario de la Patagonia.',
+  },
+  Charon: {
+    prompt: `A grave, mysterious, solemn, and deep low-register male narrator voice, speaking in standard Latin American Spanish. Pitch: Deep, darker acoustic tone with intimate breath control and mysterious weight. Pacing: Measured, suspenseful, deliberate cadence. Tone: Enigmatic, archaeological, cosmic, solemn.`,
+    sampleText: 'Bajo la arena del desierto... los enigmas de civilizaciones extintas aguardan en la penumbra.',
+  },
+  Puck: {
+    prompt: `An articulate, energetic, crisp, and intelligent male narrator voice, speaking in standard Latin American Spanish. Pitch: Balanced middle-baritone with analytical clarity. Pacing: Engaging, steady educational tempo with sharp diction. Tone: Scientific divulgation, dynamic, inquisitive, authoritative.`,
+    sampleText: 'A través del telescopio, observamos cómo las galaxias evolucionan en una danza gravitacional sin fin.',
+  },
+  Zephyr: {
+    prompt: `A calm, warm, serene, and philosophical male narrator voice, speaking in standard Latin American Spanish. Pitch: Soft baritone with gentle warmth and smooth transitions. Pacing: Relaxed, meditative, reflective tempo. Tone: Poetic, naturalistic, contemplative.`,
+    sampleText: 'El murmullo del bosque nos recuerda la frágil armonía que sostiene toda forma de vida.',
+  },
+  Kore: {
+    prompt: `A warm, dignified, elegant, and clear female narrator voice, speaking in standard Latin American Spanish (neutral documentary dubbing style). Pitch: Full-bodied alto / calm mezzosoprano with clean diction and solemn grace. Pacing: Poised, reverent, educational tempo. Tone: Authoritative, inviting, evocative documentary narrator.`,
+    sampleText: 'Entre las cumbres andinas... la memoria de nuestros antepasados resuena intacta a través de los siglos.',
+  },
+};
+
+// Memory cache for voice preview samples
+const voiceSampleCache: Record<string, { audioBase64: string; mimeType: string }> = {};
 
 /**
  * Health check
@@ -41,6 +61,81 @@ app.get('/api/health', (req: Request, res: Response) => {
     hasApiKey: Boolean(process.env.GEMINI_API_KEY),
     model: 'gemini-3.8-flash-tts',
   });
+});
+
+/**
+ * Voice Preview Sample Endpoint
+ * Returns a quick cached or newly synthesized sample for a given voice
+ */
+app.get('/api/tts/sample/:voiceName', async (req: Request, res: Response) => {
+  try {
+    const voiceName = req.params.voiceName || 'Fenrir';
+    const config = VOICE_PERSONAS[voiceName] || VOICE_PERSONAS['Fenrir'];
+
+    if (voiceSampleCache[voiceName]) {
+      return res.json({
+        success: true,
+        voiceName,
+        sampleText: config.sampleText,
+        audioBase64: voiceSampleCache[voiceName].audioBase64,
+        mimeType: voiceSampleCache[voiceName].mimeType,
+        cached: true,
+      });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: 'GEMINI_API_KEY no configurada.' });
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash-tts',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: config.sampleText,
+              speechMetadata: {
+                style: config.prompt,
+              },
+            },
+          ],
+        },
+      ],
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: voiceName,
+            },
+          },
+        },
+      },
+    });
+
+    const candidatePart = response.candidates?.[0]?.content?.parts?.[0];
+    const base64Audio = candidatePart?.inlineData?.data;
+    const mimeType = candidatePart?.inlineData?.mimeType || 'audio/wav';
+
+    if (!base64Audio) {
+      return res.status(502).json({ error: 'No se pudo generar la muestra de voz.' });
+    }
+
+    voiceSampleCache[voiceName] = { audioBase64: base64Audio, mimeType };
+
+    return res.json({
+      success: true,
+      voiceName,
+      sampleText: config.sampleText,
+      audioBase64: base64Audio,
+      mimeType,
+      cached: false,
+    });
+  } catch (err: any) {
+    console.error('Error in sample generation:', err);
+    return res.status(500).json({ error: err.message || 'Error al obtener muestra de voz.' });
+  }
 });
 
 /**
@@ -69,11 +164,12 @@ app.post('/api/tts/generate', async (req: Request, res: Response) => {
     }
 
     // Build the synthesized style directive combining the exact persona with calibration metrics
-    const basePersona = customPersona?.trim() || DEFAULT_PERSONA_PROMPT;
+    const defaultVoiceConfig = VOICE_PERSONAS[voiceName] || VOICE_PERSONAS['Fenrir'];
+    const basePersona = customPersona?.trim() || defaultVoiceConfig.prompt;
     const technicalDirectives = `
 Acoustic parameters applied:
-- Stability: ${stability}% (Consistent solemn posture, strictly avoid erratic pitch shifts)
-- Clarity & Articulation: ${clarity}% (Maximum baritone chest resonance, crystal clear diction)
+- Stability: ${stability}% (Consistent posture, strictly avoid erratic pitch shifts)
+- Clarity & Articulation: ${clarity}% (Crystal clear diction and natural acoustic resonance)
 - Style Exaggeration: ${styleExaggeration}% (Documentary naturalism, no theatrical hyperbole)
 - Pacing & Cadence: ${pacing} (Deliberate dramatic pauses between sentences, reverent breathing).`;
 
