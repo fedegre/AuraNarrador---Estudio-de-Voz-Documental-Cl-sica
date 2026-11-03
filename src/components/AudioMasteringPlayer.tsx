@@ -117,7 +117,7 @@ export const AudioMasteringPlayer: React.FC<AudioMasteringPlayerProps> = ({ curr
     const cleanTitle = currentTake.title
       ? currentTake.title.toLowerCase().replace(/[^a-z0-9]/gi, '_').slice(0, 30)
       : 'narracion_documental';
-    a.download = `${cleanTitle}_gemini38_baritono.wav`;
+    a.download = `${cleanTitle}_aura_baritono.wav`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

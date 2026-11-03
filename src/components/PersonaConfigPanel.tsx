@@ -87,7 +87,7 @@ export const PersonaConfigPanel: React.FC<PersonaConfigPanelProps> = ({
               <h2 className="font-serif-doc text-base font-bold text-zinc-100 flex items-center gap-2">
                 Parámetros Acústicos
                 <span className="text-[10px] font-mono-tech font-normal px-1.5 py-0.5 rounded bg-zinc-800 text-amber-300 border border-zinc-700">
-                  gemini-3.8-flash-tts
+                  kokoro-local
                 </span>
               </h2>
               <p className="text-xs text-zinc-400">Calibración de timbre, cadencia y directivas</p>
