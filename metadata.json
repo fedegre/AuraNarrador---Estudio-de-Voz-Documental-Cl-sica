@@ -1,0 +1,6 @@
+{
+  "name": "AuraNarrador - Estudio de Voz Documental Clásica",
+  "description": "Estudio profesional de generación y modulación de voz TTS barítona solemne estilo documental latinoamericano con Gemini 3.8 Flash TTS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuraNarrador - Estudio de Voz Documental Clásica</title>
+    <meta name="description" content="Estudio profesional de generación y modulación de voz TTS barítona solemne estilo documental latinoamericano con Gemini 3.8 Flash TTS." />
+    <meta property="og:title" content="AuraNarrador - Estudio de Voz Documental Clásica" />
+    <meta property="og:description" content="Estudio profesional de generación y modulación de voz TTS barítona solemne estilo documental latinoamericano con Gemini 3.8 Flash TTS." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+      // Runtime constraint: HMR is disabled in AI Studio; ignore harmless Vite dev WebSocket errors
+      window.addEventListener('error', function(event) {
+        if (event.message && (event.message.includes('WebSocket') || event.message.includes('@vite/client') || event.message.includes('createWebSocketModuleRunnerTransport'))) {
+          event.stopImmediatePropagation();
+          event.preventDefault();
+        }
+      });
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason && (
+          (typeof event.reason === 'string' && (event.reason.includes('WebSocket') || event.reason.includes('@vite/client'))) ||
+          (event.reason.message && (event.reason.message.includes('WebSocket') || event.reason.message.includes('@vite/client') || event.reason.message.includes('createWebSocketModuleRunnerTransport')))
+        )) {
+          event.stopImmediatePropagation();
+          event.preventDefault();
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
